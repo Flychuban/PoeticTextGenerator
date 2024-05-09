@@ -3,19 +3,18 @@ import numpy as np
 import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import LSTM, Dense
-from keras.optimizers import RMSprop
 
 # Load the data
 with open('./data/shakespeare.txt', 'rb') as f:
     text_binary = f.read().decode(encoding='utf-8').lower()
 
 # Create a dictionary of characters
-characters_dictionary = sorted(list(set(text_binary)))
+characters_dictionary = sorted(set(text_binary))
 char_to_index = dict((c, i) for i, c in enumerate(characters_dictionary))
 index_to_char = dict((i, c) for i, c in enumerate(characters_dictionary))
 
 # Predict the next character
-SEQUENCE_LENGTH = 50
+SEQUENCE_LENGTH = 40
 STEP_SIZE = 3
 
 sentences = []
@@ -34,3 +33,17 @@ for i, sentence in enumerate(sentences):
     for t, char in enumerate(sentence):
         x[i, t, char_to_index[char]] = 1
     y[i, char_to_index[next_characters[i]]] = 1
+    
+# Building the model
+model = Sequential()
+model.add(LSTM(128, input_shape=(SEQUENCE_LENGTH, len(characters_dictionary)), activation='tanh'))
+model.add(Dense(len(characters_dictionary), activation='softmax'))
+
+# Compile the model
+model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.legacy.RMSprop(learning_rate=0.01))
+
+# Train the model
+model.fit(x, y, batch_size=256, epochs=10)
+
+# Save the model
+model.save('./models/shakespeare_model.h5')
