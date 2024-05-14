@@ -13,6 +13,12 @@ def read_data_text(data_filename):
         text_binary = f.read().decode(encoding='utf-8').lower()
     return text_binary
 
+def create_char_dictionary(text_binary):
+    # Create a dictionary of characters
+    characters_dictionary = sorted(set(text_binary))
+    char_to_index = dict((c, i) for i, c in enumerate(characters_dictionary))
+    index_to_char = dict((i, c) for i, c in enumerate(characters_dictionary))
+    return characters_dictionary, char_to_index, index_to_char
 
 
 def create_model(data_filename, save_model_filename):
@@ -20,9 +26,7 @@ def create_model(data_filename, save_model_filename):
     text_binary = read_data_text(data_filename)
 
     # Create a dictionary of characters
-    characters_dictionary = sorted(set(text_binary))
-    char_to_index = dict((c, i) for i, c in enumerate(characters_dictionary))
-    index_to_char = dict((i, c) for i, c in enumerate(characters_dictionary))
+    characters_dictionary, char_to_index, index_to_char = create_char_dictionary(text_binary)
 
     # Predict the next character
     sentences = []
@@ -68,8 +72,14 @@ def sample(preds, temperature=1.0):
     return np.argmax(probas)
 
 def generate_text(length, temperature):
+    # Load the model
+    model = tf.keras.models.load_model('./models/shakespeare_model.h5')
+    
     # Load the data
     text_binary = read_data_text('./data/shakespeare.txt')
+    
+    # Create a dictionary of characters
+    characters_dictionary, char_to_index, index_to_char = create_char_dictionary(text_binary)
     
     # Pick a random sentence from the text
     start_index = random.randint(0, len(text_binary) - SEQUENCE_LENGTH - 1)
@@ -79,5 +89,33 @@ def generate_text(length, temperature):
     
     generate_text += sentence
     
+    # Generate the text
+    for i in range(length):
+        x_pred = np.zeros((1, SEQUENCE_LENGTH, len(characters_dictionary)))
+        for t, char in enumerate(sentence):
+            x_pred[0, t, char_to_index[char]] = 1
+            
+        preds = model.predict(x_pred, verbose=0)[0]
+        next_index = sample(preds, temperature)
+        next_char = index_to_char[next_index]
+        
+        generate_text += next_char
+        sentence = sentence[1:] + next_char
+    
+    return generate_text
 
-model =tf.keras.models.load_model('./models/shakespeare_model.h5')
+# Test the generate_text function
+print("---------------------- 0.2")
+print(generate_text(400, 0.2))
+
+print("---------------------- 0.35")
+print(generate_text(400, 0.35))
+
+print("---------------------- 0.5")
+print(generate_text(600, 0.5))
+
+print("---------------------- 0.75")
+print(generate_text(400, 0.75))
+
+print("---------------------- 1.0")
+print(generate_text(400, 1.0))
